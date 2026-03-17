@@ -25,5 +25,5 @@ async fn main() {
         .expect("Failed to execute test query");
     println!("Connection successful!");
 
-    server::run("0.0.0.0:2525",String::from("localhost"));
+    server::run("0.0.0.0:2525",String::from("localhost")).await;
 }

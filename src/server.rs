@@ -18,7 +18,6 @@ pub async fn run(addr: &str, hostname: String) {
             Err(e) => {
                 eprintln!("Failed to connect to {addr}");
             }
-            
         }
     }
 }
