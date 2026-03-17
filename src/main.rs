@@ -1,13 +1,16 @@
 use std::env;
 
 use tokio_postgres::NoTls;
-use tokio;
+use tokio::{self, net::TcpListener};
+
+mod session;
+mod server;
 
 #[tokio::main]
 async fn main() {
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
-    let (client, connection) = tokio_postgres::connect(&database_url, NoTls)
+    let (db_client, connection) = tokio_postgres::connect(&database_url, NoTls)
     .await
     .expect("Failed to connect to postgres");
 
@@ -17,9 +20,10 @@ async fn main() {
         }
     });
 
-    let row = client.query_one("SELECT 1", &[])
+    let row = db_client.query_one("SELECT 1", &[])
         .await
         .expect("Failed to execute test query");
-    let result: i32 = row.get(0);
     println!("Connection successful!");
+
+    server::run("0.0.0.0:2525",String::from("localhost"));
 }
