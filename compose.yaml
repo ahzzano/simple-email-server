@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: email-server-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: emailuser
+      POSTGRES_PASSWORD: emailpass
+      POSTGRES_DB: emaildb
+    
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: email-server
+    environment:
+      DATABASE_URL: postgres://emailuser:emailpass@postgres:5432/emaildb
+    ports:
+      - "2525:2525"
+      - "8080:8080"
+    depends_on:
+      - postgres
+    
