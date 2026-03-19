@@ -35,9 +35,9 @@ pub struct Session {
 }
 
 pub struct Mail {
-    sender: String,
-    reciever: String,
-    body: String,
+    pub sender: String,
+    pub reciever: String,
+    pub body: String,
 }
 
 async fn send<W>(writer: &mut W, cmd: &str)
