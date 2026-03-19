@@ -1,0 +1,52 @@
+use postgres::{NoTls, Socket, tls::NoTlsStream};
+use tokio_postgres::{Client, Connection};
+
+use crate::session::Mail;
+
+struct Disconnected;
+struct Connected {
+    client: Client,
+}
+
+pub struct Database<State = Disconnected> {
+    state: State,
+}
+
+impl Database<Disconnected> {
+    pub fn new() -> Self {
+        Self {
+            state: Disconnected,
+        }
+    }
+
+    pub async fn connect(self, database_url: &str) -> Database<Connected> {
+        let (db_client, connection) = tokio_postgres::connect(&database_url, NoTls)
+            .await
+            .expect("Failed to connect to postgres");
+
+        if let Err(e) = connection.await {
+            eprintln!("Connection error: {}", e);
+        }
+
+        Database {
+            state: Connected { client: db_client },
+        }
+    }
+}
+
+impl Database<Connected> {
+    pub async fn init_tables(&self) {}
+    pub async fn test(&self) {
+        let _row = self
+            .state
+            .client
+            .query_one("SELECT 1", &[])
+            .await
+            .expect("Failed to execute test query");
+        println!("Connection successful!");
+    }
+}
+
+fn process_mail(mail: Mail) {
+    println!("Saving mail...");
+}
