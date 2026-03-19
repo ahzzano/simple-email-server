@@ -81,6 +81,7 @@ impl Session {
         Self {
             stream,
             hostname,
+            str_buffer: String::new(),
             state: SessionState::Created,
         }
     }
