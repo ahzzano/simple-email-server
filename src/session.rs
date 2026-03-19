@@ -176,7 +176,7 @@ impl Session {
                     let m = Mail {
                         sender: sender.clone(),
                         reciever: recipient.clone(),
-                        body: self.str_buffer.clone(),
+                        body: self.str_buffer.clone().trim().to_string(),
                     };
                     {
                         let mut unlocked_db = self.db.lock().await;
