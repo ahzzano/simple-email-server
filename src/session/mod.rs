@@ -6,7 +6,10 @@ use tokio::{
     sync::Mutex,
 };
 
-use crate::database::{Connected, Database};
+use crate::{
+    database::{Connected, Database},
+    session::responses::{Response, send_response},
+};
 
 mod responses;
 
@@ -42,7 +45,7 @@ pub struct Mail {
     pub body: String,
 }
 
-async fn send<W>(writer: &mut W, cmd: &str)
+pub(super) async fn send<W>(writer: &mut W, cmd: &str)
 where
     W: AsyncWriteExt + Unpin,
 {
@@ -141,13 +144,21 @@ impl Session {
                     }
                     Commands::Mail(sender) => {
                         self.state = SessionState::MailFrom(sender);
-                        send(&mut write, "250 OK").await;
+                        send_response(
+                            &mut write,
+                            Response::Ok(responses::PositiveResponse::ActionCompleted),
+                        )
+                        .await;
                         println!("Received mail request")
                     }
                     Commands::Rcpt(recipient) => {
                         if let SessionState::MailFrom(sender) = &self.state {
                             self.state = SessionState::RcptTo(sender.clone(), recipient);
-                            send(&mut write, "250 OK").await;
+                            send_response(
+                                &mut write,
+                                Response::Ok(responses::PositiveResponse::ActionCompleted),
+                            )
+                            .await;
                             println!("Recieved recipient");
                         }
                     }
@@ -156,7 +167,8 @@ impl Session {
                             self.state = SessionState::Data(sender.clone(), recipient.clone());
                             println!("{} is now sending data", peer);
                             self.str_buffer.clear();
-                            send(&mut write, "354 End data with <CR><LF>.<CR><LF>").await;
+                            // send(&mut write, "354 End data with <CR><LF>.<CR><LF>").await;
+                            send_response(&mut write, Response::OkHold).await;
                             continue;
                         }
                     }
