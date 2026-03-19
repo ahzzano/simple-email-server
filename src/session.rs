@@ -119,7 +119,7 @@ impl Session {
                     Commands::Helo(host) => {
                         send(
                             &mut write,
-                            &format!("Hello {}, I am glad to meet you", host),
+                            &format!("Hello {}, I am glad to meet you", host.trim()),
                         )
                         .await;
                     }
@@ -148,7 +148,7 @@ impl Session {
             }
 
             if line.ends_with("\r\n") {
-                if let SessionState::Data(sender, recipient) = &self.state {
+                if let SessionState::Data(_sender, _recipient) = &self.state {
                     self.state = SessionState::Connected;
                     println!("{} finished sending mail", peer);
                     send(&mut write, "250 OK").await;
