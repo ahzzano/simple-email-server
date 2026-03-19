@@ -112,6 +112,16 @@ impl Database<Connected> {
         .await
         .unwrap();
 
+        tx.execute(
+            "CREATE TABLE IF NOT EXISTS users (
+                id      SERIAL PRIMARY KEY,
+                address TEXT NOT NULL
+            )",
+            &[],
+        )
+        .await
+        .unwrap();
+
         match tx.commit().await {
             Ok(_) => {
                 println!("Tables created")
