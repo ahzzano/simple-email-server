@@ -1,16 +1,18 @@
-use tokio::{io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader}, net::{TcpStream, tcp::WriteHalf}};
-
+use tokio::{
+    io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader},
+    net::{TcpStream, tcp::WriteHalf},
+};
 
 enum Commands {
-    Helo,
+    Helo(String),
     Ehlo,
-    Rcpt,
-    Mail,
+    Rcpt(String),
+    Mail(String),
     Data,
     Quit,
 }
 
-enum SessionState { 
+enum SessionState {
     Created,
     Connected,
     MailFrom(String),
@@ -21,7 +23,7 @@ enum SessionState {
 pub struct Session {
     stream: TcpStream,
     hostname: String,
-    state: SessionState
+    state: SessionState,
 }
 
 pub struct Mail {
@@ -30,21 +32,58 @@ pub struct Mail {
     body: String,
 }
 
-async fn send<W>(writer: &mut W, cmd:&str) 
-where 
+async fn send<W>(writer: &mut W, cmd: &str)
+where
     W: AsyncWriteExt + Unpin,
 {
-    writer.write_all(format!("{}\r\n", cmd).as_bytes()).await.unwrap();
+    writer
+        .write_all(format!("{}\r\n", cmd).as_bytes())
+        .await
+        .unwrap();
+}
+
+fn parse_command(cmd: String) -> Option<Commands> {
+    if cmd.starts_with("HELO") {
+        let host = cmd.strip_prefix("HELO");
+        return match host {
+            Some(s) => Some(Commands::Helo(s.to_string())),
+            None => None,
+        };
+    }
+
+    if cmd.starts_with("MAIL FROM") {
+        let sender = cmd.strip_prefix("MAIL FROM");
+        return match sender {
+            Some(s) => Some(Commands::Mail(s.to_string())),
+            None => None,
+        };
+    }
+
+    if cmd.starts_with("RCPT TO") {
+        let recv = cmd.strip_prefix("RCPT TO");
+        return match recv {
+            Some(s) => Some(Commands::Rcpt(s.to_string())),
+            None => None,
+        };
+    }
+
+    if cmd.starts_with("DATA") {
+        return Some(Commands::Data);
+    }
+
+    None
 }
 
 impl Session {
     pub fn new(stream: TcpStream, hostname: String) -> Self {
         Self {
-            stream, hostname, state: SessionState::Created
+            stream,
+            hostname,
+            state: SessionState::Created,
         }
     }
 
-    pub async fn run(mut self) { 
+    pub async fn run(mut self) {
         let peer = self.stream.peer_addr().unwrap();
 
         println!("New Connection from {}", peer);
@@ -54,9 +93,7 @@ impl Session {
         self.state = SessionState::Connected;
         let mut line = String::new();
 
-        send(&mut write, 
-            &format!("220 {} ESMTP Ready", self.hostname)
-        ).await;
+        send(&mut write, &format!("220 {} ESMTP Ready", self.hostname)).await;
 
         loop {
             line.clear();
@@ -75,49 +112,41 @@ impl Session {
             let trimmed = line.trim();
             println!("C: {}", trimmed);
 
-            if line.starts_with("HELO") {
-                let (cmd, host)= line.split_once(" ").expect("No host name");
-                send(&mut write,
-                    &format!("Hello {}, I am glad to meet you", host)
-                ).await;
-                continue;
-            }
+            let cmd = parse_command(line.clone());
 
-            if line.starts_with("MAIL FROM:") {
-                let f = line.clone();
-                let sender = f.chars()
-                    .skip(10)
-                    .filter(|c| *c == '<' || *c == '>')
-                    .collect();
-
-                self.state = SessionState::MailFrom(sender);
-                send(&mut write, "250 OK").await;
-                println!("Received Sender");
-                continue;
-            }
-
-            if line.starts_with("RCPT TO:") {
-                if let SessionState::MailFrom(sender) = &self.state  {
-                    let f = line.clone();
-                    let receiver = f.chars()
-                        .skip(8)
-                        .filter(|c| *c == '<' || *c == '>')
-                        .collect();
-                    self.state = SessionState::RcptTo(sender.clone(), receiver);
-                    send(&mut write, "250 OK").await;
-                    println!("Recieved recipient");
-                    continue;
+            if let Some(c) = cmd {
+                match c {
+                    Commands::Helo(host) => {
+                        send(
+                            &mut write,
+                            &format!("Hello {}, I am glad to meet you", host),
+                        )
+                        .await;
+                    }
+                    Commands::Mail(sender) => {
+                        self.state = SessionState::MailFrom(sender);
+                        send(&mut write, "250 OK").await;
+                        println!("Received mail request")
+                    }
+                    Commands::Rcpt(recipient) => {
+                        if let SessionState::MailFrom(sender) = &self.state {
+                            self.state = SessionState::RcptTo(sender.clone(), recipient);
+                            send(&mut write, "250 OK").await;
+                            println!("Recieved recipient");
+                        }
+                    }
+                    Commands::Data => {
+                        if let SessionState::RcptTo(sender, recipient) = &self.state {
+                            self.state = SessionState::Data(sender.clone(), recipient.clone());
+                            println!("{} is now sending data", peer);
+                            send(&mut write, "354 End data with <CR><LF>.<CR><LF>").await;
+                            continue;
+                        }
+                    }
+                    _ => {}
                 }
             }
 
-            if line.starts_with("DATA") {
-                if let SessionState::RcptTo(sender, recipient) = &self.state {
-                    self.state = SessionState::Data(sender.clone(), recipient.clone());
-                    println!("{} is now sending data", peer);
-                    send(&mut write, "354 End data with <CR><LF>.<CR><LF>").await;
-                    continue;
-                }
-            }
             if line.ends_with("\r\n") {
                 if let SessionState::Data(sender, recipient) = &self.state {
                     self.state = SessionState::Connected;
