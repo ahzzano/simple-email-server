@@ -1,7 +1,6 @@
-use std::env;
+use std::{env, sync::Arc};
 
-use tokio::{self, net::TcpListener};
-use tokio_postgres::NoTls;
+use tokio::{self, net::TcpListener, sync::Mutex};
 
 mod database;
 mod server;
@@ -12,8 +11,15 @@ async fn main() {
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
     let db = database::Database::new();
-    let connected = db.connect(&database_url).await;
+    let db = db.connect(&database_url).await;
+    // db.test().await;
+    let to_share_db = Arc::new(Mutex::new(db));
 
-    connected.test().await;
-    server::run("0.0.0.0:2525", String::from("localhost")).await;
+    println!("Starting server...");
+    server::run(
+        "0.0.0.0:2525",
+        String::from("localhost"),
+        to_share_db.clone(),
+    )
+    .await;
 }

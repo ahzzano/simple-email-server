@@ -1,18 +1,25 @@
-use tokio::net::TcpListener;
+use std::sync::Arc;
 
-use crate::session::Session;
+use tokio::{net::TcpListener, sync::Mutex};
 
+use crate::{
+    database::{Connected, Database},
+    session::Session,
+};
 
-pub async fn run(addr: &str, hostname: String) {
-    let listener: TcpListener = TcpListener::bind(addr).await
+pub async fn run(addr: &str, hostname: String, db: Arc<Mutex<Database<Connected>>>) {
+    println!("Running Server");
+    let listener: TcpListener = TcpListener::bind(addr)
+        .await
         .expect("Failed to bind to address");
 
     loop {
         match listener.accept().await {
             Ok((stream, _)) => {
                 let hostname = hostname.clone();
+                let db_acc = db.clone();
                 tokio::spawn(async move {
-                    Session::new(stream, hostname).run().await;
+                    Session::new(stream, hostname, db_acc).run().await;
                 });
             }
             Err(e) => {

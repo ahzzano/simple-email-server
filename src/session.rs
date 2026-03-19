@@ -1,7 +1,12 @@
+use std::{cell::RefCell, sync::Arc};
+
 use tokio::{
     io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader},
     net::{TcpStream, tcp::WriteHalf},
+    sync::Mutex,
 };
+
+use crate::database::{Connected, Database};
 
 enum Commands {
     Helo(String),
@@ -26,6 +31,7 @@ pub struct Session {
     hostname: String,
     state: SessionState,
     str_buffer: String,
+    db: Arc<Mutex<Database<Connected>>>,
 }
 
 pub struct Mail {
@@ -81,12 +87,13 @@ fn parse_command(cmd: String) -> Option<Commands> {
 }
 
 impl Session {
-    pub fn new(stream: TcpStream, hostname: String) -> Self {
+    pub fn new(stream: TcpStream, hostname: String, db: Arc<Mutex<Database<Connected>>>) -> Self {
         Self {
             stream,
             hostname,
             str_buffer: String::new(),
             state: SessionState::Created,
+            db,
         }
     }
 
@@ -171,6 +178,10 @@ impl Session {
                         reciever: recipient.clone(),
                         body: self.str_buffer.clone(),
                     };
+                    {
+                        let mut unlocked_db = self.db.lock().await;
+                        unlocked_db.add_email_to_queue(m).await;
+                    }
                     println!("{} finished sending mail", peer);
                     send(&mut write, "250 OK").await;
                     continue;
