@@ -3,8 +3,8 @@ use tokio_postgres::{Client, Connection};
 
 use crate::session::Mail;
 
-struct Disconnected;
-struct Connected {
+pub struct Disconnected;
+pub struct Connected {
     client: Client,
 }
 

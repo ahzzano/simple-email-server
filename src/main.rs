@@ -14,6 +14,6 @@ async fn main() {
     let db = database::Database::new();
     let connected = db.connect(&database_url).await;
 
-    connected.test();
+    connected.test().await;
     server::run("0.0.0.0:2525", String::from("localhost")).await;
 }
