@@ -123,6 +123,7 @@ impl Session {
                     self.state = SessionState::Connected;
                     println!("{} finished sending mail", peer);
                     send(&mut write, "250 OK").await;
+                    continue;
                 }
             }
         }
