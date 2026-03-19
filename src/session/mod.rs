@@ -167,7 +167,6 @@ impl Session {
                             self.state = SessionState::Data(sender.clone(), recipient.clone());
                             println!("{} is now sending data", peer);
                             self.str_buffer.clear();
-                            // send(&mut write, "354 End data with <CR><LF>.<CR><LF>").await;
                             send_response(&mut write, Response::OkHold).await;
                             continue;
                         }
@@ -197,7 +196,11 @@ impl Session {
                         unlocked_db.add_email_to_queue(m).await;
                     }
                     println!("{} finished sending mail", peer);
-                    send(&mut write, "250 OK").await;
+                    send_response(
+                        &mut write,
+                        Response::Ok(responses::PositiveResponse::ActionCompleted),
+                    )
+                    .await;
                     continue;
                 }
             }
