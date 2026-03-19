@@ -44,7 +44,35 @@ impl Database<Disconnected> {
 }
 
 impl Database<Connected> {
-    pub async fn init_tables(&self) {}
+    pub async fn init_tables(&mut self) {
+        let tx = self
+            .state
+            .client
+            .transaction()
+            .await
+            .expect("Unable to build transaction");
+
+        tx.execute(
+            "CREATE TABLE IF NOT EXISTS mails (
+                id  SERIAL PRIMARY KEY,
+                sender TEXT NOT NULL,
+                reciever TEXT NOT NULL,
+                body TEXT
+            )",
+            &[],
+        )
+        .await
+        .unwrap();
+
+        match tx.commit().await {
+            Ok(_) => {
+                println!("Tables created")
+            }
+            Err(e) => {
+                eprintln!("Error: {e}")
+            }
+        }
+    }
     pub async fn test(&self) {
         let _row = self
             .state

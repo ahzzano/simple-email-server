@@ -11,8 +11,9 @@ async fn main() {
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
     let db = database::Database::new();
-    let db = db.connect(&database_url).await;
-    // db.test().await;
+    let mut db = db.connect(&database_url).await;
+    db.test().await;
+    db.init_tables().await;
     let to_share_db = Arc::new(Mutex::new(db));
 
     println!("Starting server...");
