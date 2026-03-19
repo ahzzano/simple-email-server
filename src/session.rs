@@ -73,6 +73,10 @@ fn parse_command(cmd: String) -> Option<Commands> {
         return Some(Commands::Data);
     }
 
+    if cmd.starts_with("QUIT") {
+        return Some(Commands::Quit);
+    }
+
     None
 }
 
@@ -146,6 +150,10 @@ impl Session {
                             send(&mut write, "354 End data with <CR><LF>.<CR><LF>").await;
                             continue;
                         }
+                    }
+                    Commands::Quit => {
+                        send(&mut write, "221 OK").await;
+                        break;
                     }
                     _ => {}
                 }
