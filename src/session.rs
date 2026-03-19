@@ -20,10 +20,12 @@ enum SessionState {
     Data(String, String),
 }
 
+// TODO: Rewrite to use PhantomData
 pub struct Session {
     stream: TcpStream,
     hostname: String,
     state: SessionState,
+    str_buffer: String,
 }
 
 pub struct Mail {
@@ -139,17 +141,27 @@ impl Session {
                         if let SessionState::RcptTo(sender, recipient) = &self.state {
                             self.state = SessionState::Data(sender.clone(), recipient.clone());
                             println!("{} is now sending data", peer);
+                            self.str_buffer.clear();
                             send(&mut write, "354 End data with <CR><LF>.<CR><LF>").await;
                             continue;
                         }
                     }
                     _ => {}
                 }
+            } else {
+                if let SessionState::Data(_, _) = &self.state {
+                    self.str_buffer.push_str(&line);
+                }
             }
 
             if line.ends_with("\r\n") {
-                if let SessionState::Data(_sender, _recipient) = &self.state {
+                if let SessionState::Data(sender, recipient) = self.state {
                     self.state = SessionState::Connected;
+                    let m = Mail {
+                        sender: sender.clone(),
+                        reciever: recipient.clone(),
+                        body: self.str_buffer.clone(),
+                    };
                     println!("{} finished sending mail", peer);
                     send(&mut write, "250 OK").await;
                     continue;
