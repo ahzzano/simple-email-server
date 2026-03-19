@@ -8,6 +8,8 @@ use tokio::{
 
 use crate::database::{Connected, Database};
 
+mod responses;
+
 enum Commands {
     Helo(String),
     Ehlo,
