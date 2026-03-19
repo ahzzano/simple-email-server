@@ -46,7 +46,7 @@ fn parse_command(cmd: String) -> Option<Commands> {
     if cmd.starts_with("HELO") {
         let host = cmd.strip_prefix("HELO");
         return match host {
-            Some(s) => Some(Commands::Helo(s.to_string())),
+            Some(s) => Some(Commands::Helo(s.trim().to_string())),
             None => None,
         };
     }
@@ -54,7 +54,7 @@ fn parse_command(cmd: String) -> Option<Commands> {
     if cmd.starts_with("MAIL FROM") {
         let sender = cmd.strip_prefix("MAIL FROM");
         return match sender {
-            Some(s) => Some(Commands::Mail(s.to_string())),
+            Some(s) => Some(Commands::Mail(s.trim().to_string())),
             None => None,
         };
     }
@@ -62,7 +62,7 @@ fn parse_command(cmd: String) -> Option<Commands> {
     if cmd.starts_with("RCPT TO") {
         let recv = cmd.strip_prefix("RCPT TO");
         return match recv {
-            Some(s) => Some(Commands::Rcpt(s.to_string())),
+            Some(s) => Some(Commands::Rcpt(s.trim().to_string())),
             None => None,
         };
     }
